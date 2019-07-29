@@ -5,8 +5,8 @@ language: bash
 stages:
   - name: Terraform run
   - name: Perform tests
-  # - name: Deploy code
-  #   if: branch = master && type != cron  
+  - name: Deploy code
+    if: branch = master && type != cron  
 
 services:
   - docker
@@ -31,23 +31,24 @@ jobs:
         - docker pull almerhor/pylint:default
         - docker run --rm -v $(pwd):/pylint -v $(pwd)/test:/tmp/config-custom almerhor/pylint:default py/cloud_control_describe_ec2_tags.py requirements-custom.txt
     
-    # - stage: Perform tests
-    #   dist: trusty
-    #   language: java
-    #   sudo: required
-    #   addons:
-    #     sonarcloud:
-    #       organization: "alexa-cloud-control"
-    #       token: 
-    #         secure: ""
-      
-    #   jdk:
-    #     - oraclejdk8
+    - stage: Perform tests
+      dist: trusty
+      language: java
+      sudo: required
+      addons:
+        sonarcloud:
+          organization: "alexa-cloud-control"
+          token: 
+            secure: "fTNbwaaM42B6SGjx7RBhz5cihjk9qpNBLRCE1D+c3mVJXsp2682ZVwMjFlhhLpNMx8rI8DeKV8PLUnu8L4d33nYC/JOoKGyeUXYIDgW0QCS17M+vyiVJVppLnQCitDHG2KmI6iTzH+8Ax96DgdWhqFd+/Uj3VmqJPqWUEgOqBUOhVNDTF2ypa6dGeB8sWGYFsod1UunTSaKNuuLcLu43iDwddMoWXjEUf+6ql5k2zKXWBtg3CEbZYQ61u9hDQ0TrQ3mQmQImEA1ErDJTroUAEQBtmZK7qzsCi3raN0ARRMS0GDkF0wwkZ3gPWjNaLWYBYWPysffe/tsOcvLFYAdsLEZFqSreP6JvVbHiPtnoCsZcPE4R/Gs3mpnQrLwTYbcpcyWpzQzIFPI7dKocsKSs2AuN1VTpIPIi4Ozr17Mr2HH3hLwuV+bkmyDm7KT/msB5iKt5s7j5qALS/+0InaKyr475tYRI/5YsFN20zYiqlkeq8CyAPMjMxsJSDtonG7TAs1QclljwJxfsfJ1qOdIkmEAXuuiRzOG3d/Fo0rXqyMkdX0NhywEnxNB5d/MC2Nipu5xHbQJBQnd/noqeoEDcYrt/JOTcT07QDIdz9S1/ey7IDEet0j/PdpUBsGNlaQ+0MHpbJghJ037YFWSzH3asaPsHMuPCFLVy0lcRlhXAKcg="
 
-    #   script:
-    #     - sudo chmod +x $(which sonar-scanner)
-    #     - export PATH=$(dirname $(which sonar-scanner)):$PATH
-    #     - sonar-scanner
+      
+      jdk:
+        - oraclejdk8
+
+      script:
+        - sudo chmod +x $(which sonar-scanner)
+        - export PATH=$(dirname $(which sonar-scanner)):$PATH
+        - sonar-scanner
 
     - stage: Terraform run
       env:
@@ -70,32 +71,32 @@ jobs:
         - terraform validate
         - ./execute.sh
 
-    # - stage: Deploy code
-    #   script: skip
-    #   deploy:
-    #     - provider: s3
-    #       on:
-    #         branch = master
-    #       bucket: "${artifact_bucket}"
-    #       local_dir: py
-    #       skip_cleanup: true
+    - stage: Deploy code
+      script: skip
+      deploy:
+        - provider: s3
+          on:
+            branch = master
+          bucket: "${artifact_bucket}"
+          local_dir: py
+          skip_cleanup: true
 
-    #     - provider: lambda
-    #       on:
-    #         branch = master
-    #       function_name: "cloud_control_describe_ec2_tags"
-    #       region: "${terraform_region}"
-    #       role: "arn:aws:iam::${account_number}:role/LambdaAlexaCloudControlDescribeEc2TagsIamRole"
-    #       runtime: "python3.6"
-    #       module_name: "cloud_control_describe_ec2_tags"
-    #       handler_name: "cloud_control_describe_ec2_tags"
-    #       description: "Alexa EC2 - change state of EC2"
-    #       memory_size: 128
-    #       timeout: 5
-    #       zip: py/cloud_control_describe_ec2_tags.py
-    #       function_tags: 
-    #         Project = "Alexa Cloud Control"
-    #         Name    = "AlexaCloudControlDescribeEc2Tags"
-    #         Env     = "${var.environment}"
-    #         Purpose = "Lambda function"
+        - provider: lambda
+          on:
+            branch = master
+          function_name: "cloud_control_describe_ec2_tags"
+          region: "${terraform_region}"
+          role: "arn:aws:iam::${account_number}:role/LambdaAlexaCloudControlDescribeEc2TagsIamRole"
+          runtime: "python3.6"
+          module_name: "cloud_control_describe_ec2_tags"
+          handler_name: "cloud_control_describe_ec2_tags"
+          description: "Alexa EC2 - change state of EC2"
+          memory_size: 128
+          timeout: 5
+          zip: py/cloud_control_describe_ec2_tags.py
+          function_tags: 
+            Project = "Alexa Cloud Control"
+            Name    = "AlexaCloudControlDescribeEc2Tags"
+            Env     = "${var.environment}"
+            Purpose = "Lambda function"
 
