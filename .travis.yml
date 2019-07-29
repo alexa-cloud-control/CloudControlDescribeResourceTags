@@ -91,7 +91,7 @@ jobs:
           timeout: 5
           zip: py/cloud_control_describe_ec2_tags.py
           function_tags: 
-            Project = "Alexa Cloud Control"
+            Project = "AlexaCloudControl"
             Name    = "AlexaCloudControlDescribeEc2Tags"
             Purpose = "Lambda function"
 
