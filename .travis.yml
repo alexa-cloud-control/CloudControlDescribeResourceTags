@@ -93,5 +93,5 @@ jobs:
           function_tags: 
             Project = "AlexaCloudControl"
             Name    = "AlexaCloudControlDescribeEc2Tags"
-            Purpose = "Lambda function"
+            Purpose = "Lambdafunction"
 
