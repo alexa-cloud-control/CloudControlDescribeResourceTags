@@ -5,7 +5,7 @@ def cloud_control_describe_ec2_tags(event, context):
     """ Lambda function - Describe tags for resource """
 
     # validate instance name
-    ec2 = boto3.resource('ec2')
+    #ec2 = boto3.resource('ec2')
     ec2_client = boto3.client('ec2')
     msg = ""
     response = ec2_client.describe_instances(
@@ -21,14 +21,19 @@ def cloud_control_describe_ec2_tags(event, context):
         for instance in reservation['Instances']:
             instance_list.append(instance['InstanceId'])
             try:
-                if (instance['Tags']):
+                if instance['Tags']:
                     for tag in response['Tags']:
-                        temp_msg = 'Key <voice name="Matthew">{}</voice> with value <voice name="Matthew">{}</voice>.'.format(
+                        temp_msg = (
+                            'Key <voice name="Matthew">{}</voice> '
+                            'with value <voice name="Matthew">{}</voice>.'
+                        ).format(
                             tag['Key'], tag['Value']
                         )
                         msg = "{} {}".format(msg, temp_msg)
-            except Exception as e:
-                msg = "I did not find any tags for instance {}".format(event["body"]["InstanceName"])
+            except NameError:
+                msg = "I did not find any tags for instance {}".format(
+                    event["body"]["InstanceName"]
+                )
                 return {"msg": msg}
 
 
