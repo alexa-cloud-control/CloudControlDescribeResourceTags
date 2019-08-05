@@ -81,7 +81,7 @@ resource "aws_iam_role_policy_attachment" "IamRolePolicyAttachement" {
 }
 
 resource "aws_cloudwatch_log_group" "AlexaCloudControlDescribeEc2TagsLogGroup" {
-  name              = "/aws/lambda/AlexaCloudControlDescribeEc2Tags"
+  name              = "/aws/lambda/cloud_control_describe_ec2_tags"
   retention_in_days = 3
 
   tags = {

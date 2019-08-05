@@ -22,7 +22,7 @@ def cloud_control_describe_ec2_tags(event, context):
             instance_list.append(instance['InstanceId'])
             try:
                 if instance['Tags']:
-                    for tag in response['Tags']:
+                    for tag in instance['Tags']:
                         temp_msg = (
                             'Key <voice name="Matthew">{}</voice> '
                             'with value <voice name="Matthew">{}</voice>.'
