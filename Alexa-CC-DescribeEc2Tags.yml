@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Alexa CloudControl - Describe EC2 Tags
 
 Resources:
-  AlexaCloudControlCheckEc2Role:
+  AlexaCloudControlDescribeEc2TagsRole:
     Type: AWS::IAM::Role
     Properties:
       Description: IAM role for Alexa-CloudControl Describe EC2 Tags function created by Cloudformation
