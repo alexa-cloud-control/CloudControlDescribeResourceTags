@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Alexa CloudControl - Describe EC2 Tags
+
+Resources:
+  AlexaCloudControlCheckEc2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: IAM role for Alexa-CloudControl Describe EC2 Tags function created by Cloudformation
+      Path: /cloudcontrol/
+      RoleName: iam-role-alexa-cloudcontrol-describeec2tags-function
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: iam-policy-alexa-cloudcontrol-describeec2tags-function
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - 
+                Effect: Allow
+                Action: 
+                  - s3:ListBucket
+                  - s3:GetObject
+                Resource: 
+                  -
+                    !Join
+                      - ''
+                      - - 'arn:aws:s3:::'
+                        - !ImportValue Alexa-CloudControl-Infrastructure-ArtifactsBucket
+              -
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource:
+                  -
+                    !Join
+                      - ''
+                      - - 'arn:aws:dynamodb:eu-west-1:ACCOUNTNUMBER:table/'
+                        - !ImportValue Alexa-CloudControl-Infrastructure-ContextTable
+              -
+                Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:ListMetrics
+                Resource: '*'
+              -
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource:
+                  - arn:aws:logs:eu-west-1:ACCOUNTNUMBER:*
+              - 
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:eu-west-1:ACCOUNTNUMBER:log-group:/aws/lambda/*
+              -
+                Effect: Allow
+                Action: 'ec2:*'
+                Resource: '*'
+  
+  DescribeEc2TagsFunctionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Alexa CloudControl Describe EC2 Tags Function
+      FunctionName: CloudControlDescribeEc2Tags
+      Code:
+        S3Bucket: !ImportValue Alexa-CloudControl-Infrastructure-ArtifactsBucket
+        S3Key: CloudControlDescribeEc2Tags.zip
+      Runtime: python3.6
+      Handler: cloud_control_describe_ec2_tags.cloud_control_describe_ec2_tags
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          table: CONTEXTTABLE
+      Role: !GetAtt AlexaCloudControlDescribeEc2TagsRole.Arn
+      Tags:
+        - 
+          Key: Name
+          Value: Alexa-CloudControl-Describe-Ec2-Tags-Function
+        -
+          Key: Project
+          Value: Alexa-CloudControl
+        -
+          Key: Purpose
+          Value: Alexa CloudControl Describe EC2 Tags Function
+
+  FunctionTrigger:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt 
+        - DescribeEc2TagsFunctionLambda
+        - Arn
+      Principal: 'lambda.amazonaws.com'
+      SourceArn: !ImportValue Alexa-CC-Main-Function-MainFunctionLambda

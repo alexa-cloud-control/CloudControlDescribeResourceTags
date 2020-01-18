@@ -1,11 +1,11 @@
-sudo: required
-dist: trusty
-language: bash
+os: linux
+language: shell
 
 stages:
-  - name: Terraform run
   - name: Perform tests
-  - name: Deploy code
+  - name: Prepare artifact
+    if: branch = master && type != cron
+  - name: Deploy
     if: branch = master && type != cron  
 
 services:
@@ -15,11 +15,7 @@ install:
   - sudo apt-add-repository "deb http://archive.ubuntu.com/ubuntu trusty-backports main restricted universe multiverse"
   - sudo apt-get -qq update
   - sudo apt-get -t trusty-backports install shellcheck
-  - sudo pip install awscli  
-  - curl -sLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/0.12.5/terraform_0.12.5_linux_amd64.zip
-  - unzip /tmp/terraform.zip -d /tmp
-  - mv /tmp/terraform ~/bin
-  - export PATH="~/bin:$PATH"
+  - sudo pip install awscli
 
 jobs:
   include:
@@ -32,66 +28,62 @@ jobs:
         - docker run --rm -v $(pwd):/pylint -v $(pwd)/test:/tmp/config-custom almerhor/pylint:default py/cloud_control_describe_ec2_tags.py requirements-custom.txt
     
     - stage: Perform tests
-      dist: trusty
+      os: linux
       language: java
-      sudo: required
       addons:
         sonarcloud:
           organization: "alexa-cloud-control"
-          token: 
+          token:
             secure: "fTNbwaaM42B6SGjx7RBhz5cihjk9qpNBLRCE1D+c3mVJXsp2682ZVwMjFlhhLpNMx8rI8DeKV8PLUnu8L4d33nYC/JOoKGyeUXYIDgW0QCS17M+vyiVJVppLnQCitDHG2KmI6iTzH+8Ax96DgdWhqFd+/Uj3VmqJPqWUEgOqBUOhVNDTF2ypa6dGeB8sWGYFsod1UunTSaKNuuLcLu43iDwddMoWXjEUf+6ql5k2zKXWBtg3CEbZYQ61u9hDQ0TrQ3mQmQImEA1ErDJTroUAEQBtmZK7qzsCi3raN0ARRMS0GDkF0wwkZ3gPWjNaLWYBYWPysffe/tsOcvLFYAdsLEZFqSreP6JvVbHiPtnoCsZcPE4R/Gs3mpnQrLwTYbcpcyWpzQzIFPI7dKocsKSs2AuN1VTpIPIi4Ozr17Mr2HH3hLwuV+bkmyDm7KT/msB5iKt5s7j5qALS/+0InaKyr475tYRI/5YsFN20zYiqlkeq8CyAPMjMxsJSDtonG7TAs1QclljwJxfsfJ1qOdIkmEAXuuiRzOG3d/Fo0rXqyMkdX0NhywEnxNB5d/MC2Nipu5xHbQJBQnd/noqeoEDcYrt/JOTcT07QDIdz9S1/ey7IDEet0j/PdpUBsGNlaQ+0MHpbJghJ037YFWSzH3asaPsHMuPCFLVy0lcRlhXAKcg="
 
-      
-      jdk:
-        - oraclejdk8
-
       script:
-        - sudo chmod +x $(which sonar-scanner)
-        - export PATH=$(dirname $(which sonar-scanner)):$PATH
         - sonar-scanner
 
-    - stage: Terraform run
-      env:
-        - TF_INPUT=false # No interraction
+- stage: Perform tests
       script:
-        - cd provision
-        - echo "Feeding terraform.tf with variables."
-        - sed -i -e "s/STATEBUCKETNAME/${terraform_bucket}/g" terraform.tf_template
-        - sed -i -e "s/TABLENAME/${terraform_table}/g" terraform.tf_template
-        - sed -i -e "s/REGION/${terraform_region}/g" terraform.tf_template
-        - mv terraform.tf_template terraform.tf
-        - echo "Feeding terraform.tfvars with variables."
-        - sed -i -e "s/REGION/${terraform_region}/g" terraform.tfvars_template
-        - sed -i -e "s/TABLENAME/${terraform_table}/g" terraform.tfvars_template
-        - sed -i -e "s/STATEBUCKETNAME/${terraform_bucket}/g" terraform.tfvars_template
-        - sed -i -e "s/ARTIFACTBUCKETNAME/${artifact_bucket}/g" terraform.tfvars_template
-        - sed -i -e "s/ENVIRONMENT/${terraform_environment}/g" terraform.tfvars_template
-        - mv terraform.tfvars_template terraform.tfvars
-        - terraform init
-        - terraform validate
-        - ./execute.sh
+        - sed -i -e "s/ACCOUNTNUMBER/${account_number}/g" Alexa-CC-DescribeEc2Tags.yml
+        - sed -i -e "s/CONTEXTTABLE/${dynamodb_context}/g" Alexa-CC-DescribeEc2Tags.yml
+        - aws cloudformation validate-template --region ${terraform_region} --template-body file://Alexa-CC-DescribeEc2Tags.yml
 
-    - stage: Deploy code
-      script: skip
+    - stage: Perform tests
+      script:
+        - echo "Check for commit ${TRAVIS_COMMIT} and tag ${TRAVIS_TAG} from branch ${TRAVIS_BRANCH}."
+        - echo "This is build number ${TRAVIS_BUILD_NUMBER}, for ${TRAVIS_REPO_SLUG}."
+        - sed -i -e "s/ACCOUNTNUMBER/${account_number}/g" Alexa-CC-DescribeEc2Tags.yml
+        - sed -i -e "s/CONTEXTTABLE/${dynamodb_context}/g" Alexa-CC-DescribeEc2Tags.yml
+        - docker pull almerhor/cfnlint:latest
+        - docker run --rm -v $(pwd)/:/lintfiles almerhor/cfnlint -t Alexa-CC-DescribeEc2Tags.yml
+
+    - stage: Prepare artifact
+      os: linux
+      language: python
+      python:
+        - "3.6"
+      script:
+        - echo "Building package"
+        - cd artifacts/scripts
+        - chmod +x *.sh
+        - ./env_prep.sh
+        - cd ../..
+        - echo "Send artifact to S3"
       deploy:
         - provider: s3
           bucket: "${artifact_bucket}"
-          local_dir: py
+          local_dir: artifacts/package
           skip_cleanup: true
 
-        - provider: lambda
-          function_name: "cloud_control_describe_ec2_tags"
-          region: "${terraform_region}"
-          role: "arn:aws:iam::${account_number}:role/LambdaAlexaCloudControlDescribeEc2TagsIamRole"
-          runtime: "python3.6"
-          module_name: "cloud_control_describe_ec2_tags"
-          handler_name: "cloud_control_describe_ec2_tags"
-          description: "Alexa EC2 - change state of EC2"
-          memory_size: 128
-          timeout: 5
-          zip: py/cloud_control_describe_ec2_tags.py
-          # function_tags: 
-          #   Project = "AlexaCloudControl"
-          #   Name    = "AlexaCloudControlDescribeEc2Tags"
-          #   Purpose = "Lambdafunction"
-
+    - stage: Deploy
+      script:
+        - sed -i -e "s/ACCOUNTNUMBER/${account_number}/g" Alexa-CC-DescribeEc2Tags.yml
+        - sed -i -e "s/CONTEXTTABLE/${dynamodb_context}/g" Alexa-CC-DescribeEc2Tags.yml
+      deploy:
+        provider: cloudformation
+        edge: true # use DPLv2
+        access_key_id: ${AWS_ACCESS_KEY_ID}
+        secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+        capabilities: CAPABILITY_NAMED_IAM
+        template: Alexa-CC-DescribeEc2Tags.yml
+        stack_name: Alexa-CC-DescribeEc2Tags-Function
+        region: ${terraform_region}
+        wait: true
+        promote: true
